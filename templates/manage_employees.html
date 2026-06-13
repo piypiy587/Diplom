@@ -1,0 +1,38 @@
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>База сотрудников</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>Управление персоналом</h1>
+            <a href="/" class="btn-back">← В меню</a>
+        </div>
+    </header>
+    <div class="container">
+        <section class="stats-section">
+            <h2>Добавить нового сотрудника</h2>
+            <form method="POST" style="display: flex; gap: 10px; margin-top: 15px;">
+                <input type="text" name="fio" placeholder="Фамилия И.О." class="dotted-val" style="flex: 1; padding: 10px;" required>
+                <button type="submit" class="btn btn-primary">ДОБАВИТЬ</button>
+            </form>
+        </section>
+        <section class="permits-table">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead><tr><th style="padding:10px;">ID</th><th style="padding:10px;">ФИО</th></tr></thead>
+                <tbody>
+                    {% for emp in employees %}
+                    <tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">{{ emp.id }}</td><td style="padding:10px;">{{ emp.fio }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </div>
+    <script>
+    lucide.createIcons();
+    </script>
+</body>
+</html>

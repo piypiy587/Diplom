@@ -1,0 +1,210 @@
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель управления - Филиал "Кировэнерго"</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo-section">
+                <svg class="logo-icon" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                 </svg>
+                  <div>
+                    <h1>Система управления наряд-допусками</h1>
+                    <p class="subtitle">Добро пожаловать, <b>{{ session['username'] }}</b> ({{ session['role'] }})</p>
+                 </div>
+            </div>
+            <div class="header-actions">
+                <a href="/logout" class="btn-back" style="border-color: #f56565; color: #e53e3e;">Выход</a>
+             </div>
+         </div>
+    </header>
+    <div class="container">
+        <nav class="main-nav">
+            <a href="/create-permit" class="btn">
+                <i data-lucide="file-plus"></i> Создать наряд
+            </a>
+            
+            <a href="/view-permits" class="btn">
+                <i data-lucide="book-open"></i> Журнал нарядов
+            </a>
+            
+            <a href="/view-reports" class="btn">
+                <i data-lucide="camera"></i> Отчеты с полей
+            </a>
+
+            {% if session['role'] == 'admin' %}
+                <a href="/manage-departments" class="btn"><i data-lucide="building-2"></i>Подразделения</a>
+                <a href="/manage-employees" class="btn"><i data-lucide="users"></i>Сотрудники</a>
+                <a href="/manage-users" class="btn"><i data-lucide="settings"></i>Пользователи</a>
+            {% endif %}
+            
+        </nav>
+
+        <main class="dashboard-content">
+            <!-- БЛОК СТАТИСТИКИ (Dashboard) -->
+            <div class="stats-grid">
+                <!-- Карточка 1: Всего -->
+                <a href="/view-permits?filter=all" class="stat-card card-total">
+                    <div class="stat-number">{{ stats.total }}</div>
+                    <div class="stat-label">Всего нарядов</div>
+                </a>
+
+                <!-- Карточка 2: Активные -->
+                <a href="/view-permits?filter=in_progress" class="stat-card card-active">
+                    <div class="stat-number">{{ stats.count_active }}</div>
+                    <div class="stat-label">В работе (Активные)</div>
+                </a>
+
+                <!-- Карточка 3: Завершенные (считает отчеты) -->
+                <a href="/view-reports" class="stat-card card-completed">
+                    <div class="stat-number">{{ stats.count_completed }}</div>
+                    <div class="stat-label">Завершено (Отчеты)</div>
+                </a>
+            </div>
+
+            <!-- ТАБЛИЦА ПОСЛЕДНИХ ДОКУМЕНТОВ -->
+            <section class="stats-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2 style="margin: 0;">Последние наряды</h2>
+                    <span style="font-size: 12px; color: #666;">Обновлено только что</span>
+                </div>
+                
+                <div class="permits-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Время</th>
+                                <th>№ Наряда</th>
+                                <th>Подразделение</th>
+                                <th>Статус</th>
+                                <th>Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for permit in recent_permits %}
+                            <tr>
+                                <td style="color: #888; font-size: 12px;">{{ permit.time_short }}</td>
+                                <td><strong>{{ permit.p_num if (permit.p_num and 'style=' not in permit.p_num) else 'б/н' }}</strong></td>
+                                <td>{{ permit.dept_name if (permit.dept_name and 'Нажмите' not in permit.dept_name) else '—' }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ permit.status }}">
+                                        {% if permit.status == 'in_progress' %}
+                                            В РАБОТЕ
+                                        {% elif permit.status == 'signed' %}
+                                            ПОДПИСАН (В РАБОТЕ)
+                                        {% elif permit.status == 'completed' %}
+                                            ЗАВЕРШЕН
+                                        {% else %}
+                                            {{ permit.status.upper() }}
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td><a href="/view-permit/{{ permit.id }}" class="btn-print" style="padding: 5px 15px; font-size: 11px; text-decoration: none;">ОТКРЫТЬ</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- БЛОК СТРУКТУРЫ (Только для админа) -->
+            {% if session['role'] == 'admin' %}
+            <div style="margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="stats-section" style="padding: 20px;">
+                    <h3>База данных</h3>
+                    <p>Подразделений: <strong>{{ depts_count }}</strong></p>
+                    <p>Сотрудников: <strong>{{ emps_count }}</strong></p>
+                </div>
+                <div class="stats-section" style="padding: 20px;">
+                    <h3>Быстрые действия</h3>
+                    <a href="/manage-users" style="color: var(--accent); text-decoration: none;">→ Управление доступом сотрудников</a>
+                </div>
+            </div>
+            {% endif %}
+        </main>
+            <!-- БЛОК АДМИНА 2 (Работа со структурой) -->
+            {% if session['role'] == 'admin_dept' %}
+                <a href="/manage-departments" class="btn btn-primary" style="background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                    Управление подразделениями
+                </a>
+                <a href="/manage-employees" class="btn btn-secondary">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                    </svg>
+                    База сотрудников
+                </a>
+            {% endif %}
+        </nav>
+
+        <main class="dashboard-content">
+            <!-- Контент для Админа 1: Последние наряды -->
+            {% if session['role'] == 'admin_permit' %}
+                <section class="stats-section">
+                    <h2>Последние созданные документы</h2>
+                    <div class="permits-table">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8f9fa;">
+                                    <th style="padding: 15px; text-align: left;">№ Наряда</th>
+                                    <th style="padding: 15px; text-align: left;">Подразделение</th>
+                                    <th style="padding: 15px; text-align: left;">Статус</th>
+                                    <th style="padding: 15px; text-align: center;">Действие</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for permit in recent_permits %}
+                                <tr style="border-bottom: 1px solid #eee;">
+                                    <td style="padding: 15px;"><strong>{{ permit.permit_number }}</strong></td>
+                                    <td style="padding: 15px;">{{ permit.department }}</td>
+                                    <td style="padding: 15px;">
+                                        <span class="status-badge status-{{ permit.status }}">{{ permit.status }}</span>
+                                    </td>
+                                    <td style="padding: 15px; text-align: center;">
+                                        <a href="/view-permit/{{ permit.id }}" class="btn-print" style="padding: 5px 15px; text-decoration: none; font-size: 12px;">Открыть</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% if not recent_permits %}
+                                    <tr><td colspan="4" style="padding: 20px; text-align: center; color: #718096;">Нарядов пока нет</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            {% endif %}
+
+            <!-- Контент для Админа 2: Статистика базы -->
+            {% if session['role'] == 'admin_dept' %}
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">{{ stats.depts_count }}</div>
+                        <div class="stat-label">Подразделений</div>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                        <div class="stat-number">{{ stats.emps_count }}</div>
+                        <div class="stat-label">Сотрудников в базе</div>
+                    </div>
+                </div>
+                <section class="features" style="margin-top: 30px;">
+                    <h2>Инструкция администратора структуры</h2>
+                    <p>В этом разделе вы можете добавлять новые филиалы, РЭСы и участки. Также необходимо следить за актуальностью базы сотрудников (ФИО и группа по электробезопасности), чтобы они были доступны для выбора при создании нарядов.</p>
+                </section>
+            {% endif %}
+        </main>
+    </div>
+    <script>
+    lucide.createIcons();
+    </script>
+</body>
+</html>

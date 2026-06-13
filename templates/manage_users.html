@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Учетные записи — Кировэнерго</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1>Управление доступом</h1>
+                <a href="/" class="btn-back">← В меню</a>
+            </div>
+        </div>
+    </header>
+    <div class="container">
+        <!-- БЛОК ДОБАВЛЕНИЯ (Дизайнерская карточка) -->
+        <section class="stats-section" style="margin-bottom: 30px;">
+            <h2 style="margin-bottom: 20px; color: var(--accent);">Добавить нового пользователя</h2>
+            
+            <form method="POST" id="userForm" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto; gap: 15px; align-items: start;">
+                
+                <!-- Логин -->
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 8px; display: block;">ЛОГИН</label>
+                    <input type="text" name="username" placeholder="Логин" class="dotted-val" style="width: 100%; border: 1px solid #e2e8f0; padding: 10px; border-radius: 10px;" required>
+                </div>
+
+                <!-- Пароль -->
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 8px; display: block;">ПАРОЛЬ</label>
+                    <input type="password" name="password" placeholder="Пароль" class="dotted-val" style="width: 100%; border: 1px solid #e2e8f0; padding: 10px; border-radius: 10px;" required>
+                </div>
+
+                <!-- Привязка к ФИО с поиском -->
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 8px; display: block;">ПРИВЯЗКА К ФИО</label>
+                    <input type="text" id="employeeSearch" placeholder="Начните вводить ФИО..." class="dotted-val" 
+                        style="width: 100%; border: 1px solid #e2e8f0; padding: 10px; border-radius: 10px 10px 0 0;" list="empList">
+                    <datalist id="empList">
+                        {% for emp in employees %}
+                            <option value="{{ emp.fio }}" data-id="{{ emp.id }}">
+                        {% endfor %}
+                    </datalist>
+                    <!-- Скрытое поле, куда запишется реальный ID сотрудника -->
+                    <input type="hidden" name="employee_id" id="hidden_emp_id">
+                </div>
+
+                <!-- Роль -->
+                <div class="form-group">
+                    <label style="font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 8px; display: block;">РОЛЬ</label>
+                    <select name="role" class="modern-select" style="width: 100%; height: 42px;">
+                        <option value="user">Офисный сотрудник</option>
+                        <option value="signer">Подписывающий (Андроид)</option>
+                        <option value="inspector">Инспектор (Андроид)</option>
+                        <option value="admin">Администратор</option>
+                    </select>
+                </div>
+
+                <!-- Кнопка -->
+                <div class="form-group">
+                    <!-- Невидимый label для выравнивания кнопки в ряд -->
+                    <label style="font-size: 11px; margin-bottom: 8px; display: block; visibility: hidden;">ВЫРАВНИВАНИЕ</label>
+                    <button type="submit" class="btn btn-primary" style="height: 42px; background: var(--gradient-accent); border-radius: 10px; padding: 0 25px;">
+                        СОЗДАТЬ АККАУНТ
+                    </button>
+                </div>
+                {% if error %}
+                <div style="background: #fff5f5; color: #c53030; padding: 15px; border-radius: 10px; border-left: 5px solid #fc8181; margin-bottom: 20px; font-weight: bold;">
+                    {{ error }}
+                </div>
+                {% endif %}
+            </form>
+        </section>
+
+        <script>
+            // Логика связки текстового поиска с ID сотрудника
+            document.getElementById('employeeSearch').addEventListener('input', function(e) {
+                const val = e.target.value;
+                const opts = document.getElementById('empList').childNodes;
+                for (let i = 0; i < opts.length; i++) {
+                    if (opts[i].value === val) {
+                        // Если ФИО совпало, записываем его ID в скрытое поле
+                        document.getElementById('hidden_emp_id').value = opts[i].getAttribute('data-id');
+                        break;
+                    }
+                }
+            });
+        </script>
+
+        <!-- ТАБЛИЦА ПОЛЬЗОВАТЕЛЕЙ -->
+        <section class="permits-table">
+            <h2 style="margin-bottom: 20px;">Зарегистрированные в системе</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Логин</th>
+                        <th>Привязанный сотрудник</th>
+                        <th>Роль</th>
+                        <th>Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td><strong>{{ user.username }}</strong></td>
+                        <td>{{ user.fio if user.fio else '<span style="color: #ccc;">не привязан</span>' | safe }}</td>
+                        <td>
+                            <span class="status-badge {{ 'status-signed' if user.role == 'admin' else 'status-created' }}">
+                                {{ 'АДМИНИСТРАТОР' if user.role == 'admin' else 'ИСПОЛНИТЕЛЬ' }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="/delete-user/{{ user.id }}" 
+                            onclick="return confirm('Вы уверены?')" 
+                            style="color: #e53e3e; text-decoration: none; font-size: 12px; font-weight: bold;">
+                            УДАЛИТЬ
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </div>
+    <script>
+    lucide.createIcons();
+    </script>
+</body>
+</html>

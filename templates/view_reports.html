@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Отчетность по нарядам</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <header>
+    <div class="header-content">
+        <!-- Только заголовок, без иконок и оберток -->
+        <h1>Отчетность с мест работ</h1>
+
+        <div class="header-actions">
+                <a href="/" class="btn-back">← В меню</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="reports-container" style="display: grid; grid-template-columns: 360px 1fr; gap: 30px; margin-top: 20px;">
+            
+            <!-- ЛЕВАЯ КОЛОНКА -->
+            <div class="sidebar">
+                <div class="search-box" style="margin-bottom: 20px;">
+                    <div style="position: relative;">
+                        <i data-lucide="search" style="position: absolute; left: 12px; top: 12px; width: 18px; color: #94a3b8;"></i>
+                        <input type="text" id="reportSearch" placeholder="Поиск по номеру...">
+                    </div>
+                </div>
+                <div id="permitsList">
+                    <p style="text-align: center; color: white; opacity: 0.6;">Загрузка данных...</p>
+                </div>
+            </div>
+
+            <!-- ПРАВАЯ КОЛОНКА -->
+            <div class="details-panel" id="reportContent">
+                <div style="text-align: center; color: #94a3b8; margin-top: 150px;">
+                    <i data-lucide="mouse-pointer-2" style="width: 48px; height: 48px; margin-bottom: 15px; opacity: 0.3;"></i>
+                    <h3>Выберите наряд из списка слева для просмотра акта</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allReports = [];
+
+        async function loadData() {
+            try {
+                const res = await fetch('/api/reports-list');
+                allReports = await res.json();
+                renderList(allReports);
+            } catch (e) {
+                document.getElementById('permitsList').innerHTML = "<p style='color:red;'>Ошибка загрузки</p>";
+            }
+        }
+
+        function renderList(data) {
+            const list = document.getElementById('permitsList');
+            if (!list) return;
+
+            if (!data || data.length === 0) {
+                list.innerHTML = "<p style='text-align:center; padding:20px; color:#94a3b8;'>Ничего не найдено</p>";
+                return;
+            }
+
+            list.innerHTML = data.map(p => {
+                // Чистим номер наряда от возможного мусора
+                let cleanNum = p.p_num ? String(p.p_num).replace(/<[^>]*>/g, '') : "б/н";
+                if (cleanNum.includes('style=')) cleanNum = "б/н";
+
+                const lat = p.latitude ? Number(p.latitude).toFixed(4) : "—";
+                const lon = p.longitude ? Number(p.longitude).toFixed(4) : "—";
+
+                return `
+                    <div class="report-card" onclick="showDetails(${p.id}, this)">
+                        <strong>Наряд №${cleanNum}</strong>
+                        <small><i data-lucide="map-pin" style="width:14px; height:14px;"></i> GPS: ${lat}, ${lon}</small>
+                        <div style="font-size: 11px; opacity: 0.7;">${(p.work_task || 'Задание не указано').substring(0, 40)}...</div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Обновляем иконки Lucide после рендера
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // --- ЛОГИКА ПОИСКА (ИСПРАВЛЕННАЯ) ---
+        const searchInput = document.getElementById('reportSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const val = e.target.value.trim().toLowerCase();
+                console.log("Ищем:", val); // Проверка в консоли
+
+                const filtered = allReports.filter(p => {
+                    // Ищем совпадение в номере наряда или в ID
+                    const num = String(p.p_num || '').toLowerCase();
+                    const id = String(p.id || '').toLowerCase();
+                    const task = String(p.work_task || '').toLowerCase();
+                    
+                    return num.includes(val) || id.includes(val) || task.includes(val);
+                });
+
+                renderList(filtered);
+            });
+        }
+
+        function openPhotoModal(src) {
+            const modal = document.getElementById('photoModal');
+            const modalImg = document.getElementById('fullPhoto');
+            
+            modal.style.display = "block";
+            modalImg.src = src;
+            
+            // Небольшая задержка для запуска анимации
+            setTimeout(() => {
+                modal.classList.add('active');
+            }, 10);
+        }
+
+        function closePhotoModal() {
+            const modal = document.getElementById('photoModal');
+            modal.classList.remove('active');
+            setTimeout(() => {
+                modal.style.display = "none";
+            }, 300);
+        }
+
+        async function showDetails(id, element) {
+            document.querySelectorAll('.report-card').forEach(c => c.classList.remove('active'));
+            element.classList.add('active');
+
+            const res = await fetch(`/api/reports/${id}`);
+            const reports = await res.json();
+            const content = document.getElementById('reportContent');
+
+            content.innerHTML = reports.map(r => `
+                <div class="report-content-wrapper animate-fade-in">
+                    <!-- Шапка -->
+                    <div class="report-header-ui">
+                        <div>
+                            <h2>Технический осмотр объекта</h2>
+                            <p style="margin: 5px 0 0; color: #94a3b8; font-size: 13px; font-weight: 500;">
+                                <i data-lucide="calendar" style="width:14px; vertical-align:middle;"></i> ${r.created_at}
+                            </p>
+                        </div>
+                        <a href="https://www.google.com/maps?q=${r.latitude},${r.longitude}" target="_blank" class="gps-pill">
+                            <i data-lucide="map-pin"></i> На карте
+                        </a>
+                    </div>
+
+                    <!-- Сетка параметров -->
+                    <div class="params-grid">
+                        <div class="param-item">
+                            <div class="param-icon"><i data-lucide="user"></i></div>
+                            <div class="param-info">
+                                <label>Инспектор</label>
+                                <span>${r.inspector_name}</span>
+                            </div>
+                        </div>
+                        <div class="param-item">
+                            <div class="param-icon"><i data-lucide="cloud-sun"></i></div>
+                            <div class="param-info">
+                                <label>Метеоусловия</label>
+                                <span>${r.weather || 'Ясно'}</span>
+                            </div>
+                        </div>
+                        <div class="param-item">
+                            <div class="param-icon"><i data-lucide="activity"></i></div>
+                            <div class="param-info">
+                                <label>Состояние ЭУ</label>
+                                <span style="color: #10b981;">${r.equip_condition || 'Исправно'}</span>
+                            </div>
+                        </div>
+                        <div class="param-item">
+                            <div class="param-icon"><i data-lucide="shield-check"></i></div>
+                            <div class="param-info">
+                                <label>Безопасность</label>
+                                <span>${r.safety_check || 'Соблюдена'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Текст заключения -->
+                    <div class="report-main-text">
+                        <label><i data-lucide="file-text" style="width:16px;"></i> Детальное заключение</label>
+                        <p style="margin:0; font-size: 15px; line-height: 1.6; color: #334155; font-weight: 500;">
+                            ${r.report_text}
+                        </p>
+                    </div>
+
+                    <!-- Фотографии -->
+                    <h3 class="gallery-title"><i data-lucide="image"></i> Фотофиксация</h3>
+                    <div class="gallery-grid">
+                        ${(r.photos || []).map(img => `<img src="${img}" onclick="openPhotoModal(this.src)">`).join('')}
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+        
+        loadData();
+    </script>
+    <div id="photoModal" class="photo-lightbox" onclick="closePhotoModal()">
+        <span class="close-lightbox">&times;</span>
+        <img id="fullPhoto" src="" alt="Увеличенное фото">
+    </div>
+</body>
+</html>

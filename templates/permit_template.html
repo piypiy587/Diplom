@@ -1,0 +1,340 @@
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <title>Наряд-допуск №{{ permit['permit_number'] }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background: white;
+            }
+            .permit-document {
+                box-shadow: none;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="no-print">
+            <div class="header-content">
+                <h1>Просмотр наряд-допуска</h1>
+                <div class="header-actions">
+                    <a href="/view-permits" class="btn-back">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <line x1="19" y1="12" x2="5" y2="12" stroke-width="2" stroke-linecap="round"/>
+                            <polyline points="12 19 5 12 12 5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Назад к списку
+                    </a>
+                    <button onclick="window.print()" class="btn btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <polyline points="6 9 6 2 18 2 18 9" stroke-width="2"/>
+                            <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" stroke-width="2"/>
+                            <rect x="6" y="14" width="12" height="8" stroke-width="2"/>
+                        </svg>
+                        Печать
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="permit-document">
+            <!-- Шапка документа -->
+            <div class="document-header">
+                <div class="org-info">
+                    <div class="org-row">
+                        <span class="label">Организация</span>
+                        <span class="value">{{ permit['organization'] or 'Филиал "Кировэнерго"' }}</span>
+                        <span class="label">Подразделение</span>
+                        <span class="value">{{ permit['department'] }}</span>
+                    </div>
+                </div>
+                
+                <div class="document-title">
+                    <h1>НАРЯД-ДОПУСК №{{ permit['permit_number'] }}</h1>
+                    <p class="document-subtitle">для работы в электроустановках</p>
+                </div>
+            </div>
+
+            <!-- Основная информация -->
+            <div class="document-section">
+                <div class="info-row">
+                    <div class="info-item">
+                        <label>Ответственному руководителю работ</label>
+                        <div class="value-box">{{ permit['responsible_manager_fio'] }}</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Допускающему</label>
+                        <div class="value-box">{{ permit['admitting_person_fio'] }}</div>
+                    </div>
+                </div>
+
+                <div class="info-row">
+                    <div class="info-item">
+                        <label>Производителю работ</label>
+                        <div class="value-box">{{ permit['work_producer_fio'] }}</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Наблюдающему</label>
+                        <div class="value-box">не назначается</div>
+                    </div>
+                </div>
+
+                <div class="info-item full-width">
+                    <label>с членами бригады</label>
+                    <div class="value-box">
+                        {% if permit['team_members_info'] %}
+                            {{ permit['team_members_info']|map(attribute='fio')|join('; ') }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Описание работ -->
+            <div class="document-section">
+                <div class="info-item full-width">
+                    <label>поручается</label>
+                    <div class="value-box description">
+                        <strong>{{ permit['work_name'] }}</strong><br>
+                        {{ permit['work_description'] }}<br>
+                        <em>Место: {{ permit['place_name'] }}</em>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Время работ -->
+            <div class="document-section">
+                <div class="info-row">
+                    <div class="info-item">
+                        <label>Работу начать:</label>
+                        <div class="datetime-box">
+                            <span class="dt-label">дата</span>
+                            <span class="dt-value">{{ permit['start_date'] }}</span>
+                            <span class="dt-label">время</span>
+                            <span class="dt-value">{{ permit['start_time'] }}</span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <label>Работу закончить:</label>
+                        <div class="datetime-box">
+                            <span class="dt-label">дата</span>
+                            <span class="dt-value">{{ permit['end_date'] }}</span>
+                            <span class="dt-label">время</span>
+                            <span class="dt-value">{{ permit['end_time'] }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Мероприятия по подготовке -->
+            <div class="document-section">
+                <h3 class="section-title">Мероприятия по подготовке рабочих мест к выполнению работ</h3>
+                <table class="measures-table">
+                    <thead>
+                        <tr>
+                            <th>Наименования электроустановок, в которых нужно провести отключения и установить заземления</th>
+                            <th>Что должно быть отключено и где заземлено</th>
+                            <th>Что должно быть изолировано (ограждено)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="3" style="text-align: center; padding: 30px; color: #718096;">
+                                <em>Мероприятия указываются ответственным руководителем работ</em>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Отдельные указания -->
+            {% if permit['special_instructions'] %}
+            <div class="document-section">
+                <div class="info-item full-width">
+                    <label>Отдельные указания</label>
+                    <div class="value-box">{{ permit['special_instructions'] }}</div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Выдача наряда -->
+            <div class="document-section signatures-section">
+                <div class="info-row">
+                    <div class="info-item">
+                        <label>Наряд выдал:</label>
+                        <div class="signature-line">
+                            <span class="dt-label">дата</span>
+                            <span class="dt-value underline">{{ permit['start_date'] }}</span>
+                            <span class="dt-label">время</span>
+                            <span class="dt-value underline">{{ permit['start_time'] }}</span>
+                        </div>
+                        <div class="signature-box">
+                            <span class="sig-label">Подпись</span>
+                            <span class="sig-line"></span>
+                            <span class="sig-label">Фамилия, инициалы</span>
+                            <span class="sig-value">{{ permit['responsible_manager_fio'] }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Целевой инструктаж -->
+            <div class="document-section">
+                <h3 class="section-title">Регистрация целевого инструктажа, проводимого выдающим наряд</h3>
+                <table class="instruction-table">
+                    <thead>
+                        <tr>
+                            <th colspan="2">Целевой инструктаж провел</th>
+                            <th colspan="2">Целевой инструктаж получил</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Работник, выдавший наряд</td>
+                            <td class="signature-cell">
+                                <div>{{ permit['responsible_manager_fio'] }}</div>
+                                <div class="sig-placeholder">(подпись)</div>
+                            </td>
+                            <td>Ответственный руководитель работ (производитель работ, наблюдающий)</td>
+                            <td class="signature-cell">
+                                <div>{{ permit['work_producer_fio'] }}</div>
+                                <div class="sig-placeholder">(подпись)</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Допуск -->
+            <div class="document-section">
+                <h3 class="section-title">Ежедневный допуск к работе и время её окончания</h3>
+                <table class="daily-permit-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">Наименование рабочего места</th>
+                            <th rowspan="2">Дата, время</th>
+                            <th colspan="2">Бригада получила целевой инструктаж и допущена на подготовленное рабочее место</th>
+                            <th colspan="2">Работа закончена, бригада удалена</th>
+                        </tr>
+                        <tr>
+                            <th>Допускающего</th>
+                            <th>Производителя работ (наблюдающего)</th>
+                            <th>Дата, время</th>
+                            <th>Подпись производителя работ (наблюдающего)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>{{ permit['place_name'] }}</td>
+                            <td class="datetime-cell">
+                                {{ permit['start_date'] }}<br>
+                                {{ permit['start_time'] }}
+                            </td>
+                            <td class="signature-cell">
+                                <div class="sig-placeholder">{{ permit['admitting_person_fio'] }}</div>
+                                <div class="sig-placeholder">(подпись)</div>
+                            </td>
+                            <td class="signature-cell">
+                                <div class="sig-placeholder">{{ permit['work_producer_fio'] }}</div>
+                                <div class="sig-placeholder">(подпись)</div>
+                            </td>
+                            <td class="datetime-cell">
+                                {{ permit['end_date'] }}<br>
+                                {{ permit['end_time'] }}
+                            </td>
+                            <td class="signature-cell">
+                                <div class="sig-placeholder">{{ permit['work_producer_fio'] }}</div>
+                                <div class="sig-placeholder">(подпись)</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Завершение работ -->
+            <div class="document-section final-section">
+                <div class="completion-box">
+                    <p><strong>Работа полностью закончена, бригада удалена, заземления, установленные бригадой, сняты, сообщено (кому)</strong></p>
+                    <div class="completion-signatures">
+                        <div class="completion-line">
+                            <span class="label">дата</span>
+                            <span class="underline-box"></span>
+                            <span class="label">время</span>
+                            <span class="underline-box"></span>
+                            <span class="label">(должность)</span>
+                            <span class="underline-box wide"></span>
+                        </div>
+                        <div class="signature-row">
+                            <div class="sig-item">
+                                <label>Производитель работ (наблюдающий)</label>
+                                <div class="sig-box">
+                                    <span class="sig-line"></span>
+                                    <span class="sig-name">{{ permit['work_producer_fio'] }}</span>
+                                </div>
+                            </div>
+                            <div class="sig-item">
+                                <label>Ответственный руководитель работ</label>
+                                <div class="sig-box">
+                                    <span class="sig-line"></span>
+                                    <span class="sig-name">{{ permit['responsible_manager_fio'] }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Статус документа -->
+            <div class="document-status no-print">
+                <div class="status-badge status-{{ permit['status'] }}">
+                    Статус: 
+                    {% if permit['status'] == 'created' %}
+                        Создан
+                    {% elif permit['status'] == 'signed' %}
+                        Подписан
+                    {% elif permit['status'] == 'in_progress' %}
+                        В работе
+                    {% elif permit['status'] == 'completed' %}
+                        Завершен
+                    {% else %}
+                        {{ permit['status'] }}
+                    {% endif %}
+                </div>
+                <div class="creation-date">
+                    Создан: {{ permit['created_at'] }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Отчеты об осмотре -->
+        <div class="inspection-reports no-print" id="inspectionReports">
+            <h2>Отчеты об осмотре</h2>
+            <div id="reportsContainer">
+                <p class="loading">Загрузка отчетов...</p>
+            </div>
+        </div>
+    </div>
+
+    <footer class="no-print">
+        <div class="footer-bottom">
+            <p>&copy; 2024 Филиал "Кировэнерго". Все права защищены.</p>
+        </div>
+    </footer>
+
+    <input type="hidden" id="permitId" value="{{ permit['id'] }}">
+    
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+    lucide.createIcons();
+    </script>
+</body>
+</html>

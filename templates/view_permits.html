@@ -1,0 +1,235 @@
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <title>Список наряд-допусков</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>Журнал наряд-допусков</h1>
+            <a href="/" class="btn-back">← В меню</a>
+        </div>
+    </header>
+    <div class="container">
+        <div class="permits-table">
+            <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <h2>Все наряды в системе</h2>
+                {% if role == 'admin_permit' %}
+                <a href="/create-permit" class="btn btn-primary">+ Создать новый</a>
+                {% endif %}
+            </div>
+            <div class="stats-section" style="margin-bottom: 25px; padding: 20px; background: white; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px;">
+                <span style="font-weight: 700; color: #475569; font-size: 14px; text-transform: uppercase;">Фильтр:</span>
+                
+                <div class="filter-wrapper" style="position: relative; flex: 1; max-width: 400px;">
+                    <select id="statusFilter" class="modern-select" onchange="applyFilter()">
+                        <option value="all">ВСЕ НАРЯДЫ (0)</option>
+                        <option value="in_progress">В РАБОТЕ (0)</option>
+                        <option value="signed">ПОДПИСАН (В РАБОТЕ) (0)</option>
+                        <option value="completed">ЗАВЕРШЕН (0)</option>
+                    </select>
+                </div>
+            </div>
+            <table id="permitsTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortData('p_num')">№ наряда <span id="sort_icon_p_num">↕</span></th>
+                        <th onclick="sortData('dept_name')">Подразделение <span id="sort_icon_dept_name">↕</span></th>
+                        <th onclick="sortData('work_task')">Задание <span id="sort_icon_work_task">↕</span></th>
+                        <th onclick="sortData('date_created')">Дата <span id="sort_icon_date_created">↕</span></th>
+                        <th onclick="sortData('resp_manager')">Ответственный <span id="sort_icon_resp_manager">↕</span></th>
+                        <th onclick="sortData('status')">Статус <span id="sort_icon_status">↕</span></th>
+                        <th style="cursor: default;">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function updateFilterCounters() {
+            const counts = {
+                all: permitsData.length,
+                in_progress: permitsData.filter(p => p.status === 'in_progress').length,
+                signed: permitsData.filter(p => p.status === 'signed').length,
+                completed: permitsData.filter(p => p.status === 'completed').length
+            };
+
+            const select = document.getElementById('statusFilter');
+            if (select) {
+                select.options[0].text = `ВСЕ НАРЯДЫ (${counts.all})`;
+                select.options[1].text = `В РАБОТЕ (${counts.in_progress})`;
+                select.options[2].text = `ПОДПИСАН (В РАБОТЕ) (${counts.signed})`;
+                select.options[3].text = `ЗАВЕРШЕН (${counts.completed})`;
+            }
+        }
+        // 1. Глобальные переменные
+        let permitsData = []; // Хранилище для всех нарядов
+        let currentSort = { column: 'date_created', direction: 'desc' }; // По умолчанию самые свежие
+        const userRole = "{{ role }}"; // Получаем роль из Flask
+
+        // 2. Загрузка данных при старте
+        async function loadPermits() {
+            try {
+                const response = await fetch('/api/permits');
+                permitsData = await response.json();
+                
+                updateFilterCounters();
+
+                // --- ЛОГИКА АВТО-ФИЛЬТРА ИЗ ССЫЛКИ ---
+                const urlParams = new URLSearchParams(window.location.search);
+                const filterParam = urlParams.get('filter'); // Читаем ?filter=...
+
+                if (filterParam && filterParam !== 'all') {
+                    const select = document.getElementById('statusFilter');
+                    select.value = filterParam; // Ставим значение в выпадающем списке
+                    applyFilter(); // Запускаем фильтрацию
+                } else {
+                    sortData('date_created', true); // Иначе просто показываем всё
+                }
+            } catch (error) { console.error(error); }
+        }
+
+        function getStatusText(status) {
+            const map = { 'new': 'НОВЫЙ', 'in_progress': 'В РАБОТЕ', 'completed': 'ЗАВЕРШЕН' };
+            return map[status] || status;
+        }
+        function applyFilter() {
+            const val = document.getElementById('statusFilter').value;
+            if (val === 'all') {
+                renderTable(permitsData);
+            } else {
+                const filtered = permitsData.filter(p => p.status === val);
+                renderTable(filtered);
+            }
+        }
+        // 3. Функция отрисовки таблицы
+        function renderTable(data) {
+            const tbody = document.querySelector('#permitsTable tbody');
+            if (!tbody) return;
+
+            tbody.innerHTML = data.map(permit => {
+                // Определяем, что рисовать в колонке статуса
+                let statusHtml = '';
+                if (userRole === 'admin') {
+                    statusHtml = `
+                        <select class="status-badge status-${permit.status}" onchange="updateStatus(${permit.id}, this)">
+                            <option value="new" ${permit.status === 'new' ? 'selected' : ''}>Новый</option>
+                            <option value="in_progress" ${permit.status === 'in_progress' ? 'selected' : ''}>В работе</option>
+                            <option value="completed" ${permit.status === 'completed' ? 'selected' : ''}>Завершен</option>
+                        </select>
+                    `;
+                } else {
+                    statusHtml = `<span class="status-badge status-${permit.status}">${getStatusText(permit.status)}</span>`;
+                }
+
+                // Текст кнопки
+                const buttonText = (userRole === 'admin') ? 'Редактировать' : '👁 Просмотр';
+
+                return `
+                    <tr>
+                        <td><strong>${permit.p_num || '-'}</strong></td>
+                        <td>${permit.dept_name || '-'}</td>
+                        <td>${(permit.work_task || '').substring(0, 35)}...</td>
+                        <td>${permit.date_created || '-'}</td>
+                        <td>${permit.resp_manager || '-'}</td>
+                        <td>${statusHtml}</td>
+                        <td>
+                            <a href="/view-permit/${permit.id}" class="btn btn-small btn-secondary" style="min-width:140px;">
+                                ${buttonText}
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 4. Логика сортировки
+        function sortData(column, isInitial = false) {
+            // Если это не первая загрузка и нажали на ту же колонку — меняем направление
+            if (!isInitial) {
+                if (currentSort.column === column) {
+                    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort.column = column;
+                    currentSort.direction = 'asc';
+                }
+            }
+
+            permitsData.sort((a, b) => {
+                let valA = a[column] || '';
+                let valB = b[column] || '';
+
+                // Специальная логика для даты создания (формат "19.05.2026 14:20")
+                if (column === 'date_created') {
+                    const parseDate = (str) => {
+                        if (!str || str === '-') return new Date(0);
+                        const [d, m, y, h, min] = str.split(/[\.\s:]/);
+                        return new Date(y, m - 1, d, h, min);
+                    };
+                    valA = parseDate(valA);
+                    valB = parseDate(valB);
+                } else {
+                    // Для обычных строк приводим к нижнему регистру
+                    valA = valA.toString().toLowerCase();
+                    valB = valB.toString().toLowerCase();
+                }
+
+                if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            updateSortIcons(column);
+            renderTable(permitsData);
+        }
+
+        // 5. Обновление иконок стрелочек
+        function updateSortIcons(activeColumn) {
+            const columns = ['p_num', 'dept_name', 'work_task', 'date_created', 'resp_manager', 'status'];
+            columns.forEach(col => {
+                const icon = document.getElementById(`sort_icon_${col}`);
+                if (!icon) return;
+                
+                if (col === activeColumn) {
+                    icon.innerText = currentSort.direction === 'asc' ? ' 🔼' : ' 🔽';
+                    icon.style.color = '#3b82f6';
+                } else {
+                    icon.innerText = ' ↕';
+                    icon.style.color = '#ccc';
+                }
+            });
+        }
+
+        // 6. Смена статуса на сервере
+        async function updateStatus(id, el) {
+            const newStatus = el.value;
+            el.className = `status-badge status-${newStatus}`;
+
+            try {
+                const response = await fetch(`/api/permits/${id}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                if (!response.ok) throw new Error();
+                console.log("Статус обновлен");
+            } catch (e) {
+                alert("Ошибка связи с сервером!");
+                location.reload();
+            }
+        }
+
+        // ЗАПУСК
+        loadPermits();
+    </script>
+    <script>
+    lucide.createIcons();
+    </script>
+</body>
+</html>
