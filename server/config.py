@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 
+# Загружаем переменные из файла .env (работает только при локальной разработке)
 load_dotenv()
 
 class Config:
@@ -13,4 +14,5 @@ class Config:
     
     @staticmethod
     def get_db_url():
-        return f"postgresql://{Config.DB_USER}:{Config.DB_PASSWORD}@{Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}"
+        # Добавляем параметр ?sslmode=require, так как Supabase требует безопасное соединение
+        return f"postgresql://{Config.DB_USER}:{Config.DB_PASSWORD}@{Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}?sslmode=require"
