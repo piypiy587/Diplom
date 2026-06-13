@@ -13,9 +13,13 @@ template_path = os.path.join(rootdir, 'templates')
 static_path = os.path.join(rootdir, 'static')
 
 
-app = Flask(__name__, 
-            template_folder=template_path, 
-            static_folder=static_path)
+base_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(base_dir, 'templates'),
+    static_folder=os.path.join(base_dir, 'static')
+)
 
 app.secret_key = 'kirov-energo-secret'
 
